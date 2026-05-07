@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The 24 Game</title>
+
+<!-- Firebase SDK (compat v9) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --p1: #2563eb;
+  --p1-light: #eff6ff;
+  --p1-border: #bfdbfe;
+  --p2: #7c3aed;
+  --p2-light: #f5f3ff;
+  --p2-border: #ddd6fe;
+  --accent: #f59e0b;
+  --success: #059669;
+  --success-light: #ecfdf5;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --warning: #d97706;
+  --warning-light: #fffbeb;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-card: 0 6px 20px rgba(0,0,0,0.13), 0 2px 6px rgba(0,0,0,0.08);
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 20px;
+  gap: 20px;
+}
+
+/* ── BUTTONS ─────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px; border: none; border-radius: var(--radius-sm);
+  font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  transition: all 0.15s; font-family: inherit; white-space: nowrap;
+}
+.btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+.btn-primary { background: var(--text); color: #fff; }
+.btn-primary:hover { background: #1e293b; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.btn-outline { background: var(--surface); color: var(--text-muted); border: 1.5px solid var(--border); }
+.btn-outline:hover { border-color: #94a3b8; color: var(--text); transform: translateY(-1px); }
+.btn-success { background: var(--success); color: #fff; }
+.btn-success:hover { background: #047857; transform: translateY(-1px); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #b91c1c; transform: translateY(-1px); }
+.btn-warning { background: var(--surface); color: var(--warning); border: 1.5px solid #fde68a; }
+.btn-warning:hover { background: var(--warning-light); }
+.btn-p1 { background: var(--p1); color: #fff; font-size: 1rem; padding: 14px 22px; border-radius: var(--radius); width: 100%; justify-content: center; }
+.btn-p1:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37,99,235,0.35); }
+.btn-p2 { background: var(--p2); color: #fff; font-size: 1rem; padding: 14px 22px; border-radius: var(--radius); width: 100%; justify-content: center; }
+.btn-p2:hover:not(:disabled) { background: #6d28d9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124,58,237,0.35); }
+
+/* ── LOBBY SCREEN ────────────────────────────────────────── */
+#lobbyScreen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
+  max-width: 440px;
+  padding-top: 40px;
+}
+
+.lobby-logo h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; }
+.lobby-logo .badge {
+  display: inline-block;
+  background: var(--accent); color: #fff;
+  font-size: 0.7rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 100px;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  margin-left: 8px; vertical-align: middle;
+}
+
+.lobby-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.lobby-card .btn-primary { width: 100%; justify-content: center; font-size: 1rem; padding: 13px; }
+
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 0.8rem; color: var(--text-muted); font-weight: 500;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+.join-row { display: flex; gap: 8px; }
+.join-row input {
+  flex: 1; padding: 10px 13px;
+  background: var(--surface-2); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 1rem; font-family: inherit;
+  color: var(--text); outline: none; text-transform: uppercase;
+  letter-spacing: 3px; font-weight: 700;
+  transition: border-color 0.2s;
+}
+.join-row input::placeholder { letter-spacing: 1px; font-weight: 400; text-transform: none; }
+.join-row input:focus { border-color: var(--p2); }
+
+.lobby-error {
+  font-size: 0.82rem; color: var(--danger);
+  text-align: center; min-height: 20px;
+}
+
+/* ── WAITING SCREEN ──────────────────────────────────────── */
+#waitingScreen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding-top: 60px;
+}
+
+.waiting-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px 48px;
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  box-shadow: var(--shadow-sm);
+  max-width: 380px; width: 100%;
+}
+.waiting-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); }
+.room-code-big {
+  font-size: 3rem; font-weight: 800; letter-spacing: 8px;
+  color: var(--p1); font-variant-numeric: tabular-nums;
+}
+.waiting-sub { font-size: 0.9rem; color: var(--text-muted); }
+.spinner {
+  width: 28px; height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--p1);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── GAME SCREEN ─────────────────────────────────────────── */
+#gameScreen { display: none; flex-direction: column; align-items: center; gap: 20px; width: 100%; }
+
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; max-width: 920px;
+}
+.logo { display: flex; align-items: baseline; gap: 8px; }
+.logo h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
+.logo .badge {
+  background: var(--accent); color: #fff;
+  font-size: 0.7rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 100px;
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+.header-center {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.room-code-small {
+  font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0.5px;
+}
+.room-code-small strong { color: var(--text); letter-spacing: 2px; font-size: 0.85rem; }
+.header-right { display: flex; gap: 8px; align-items: center; }
+
+/* ── BOARD ───────────────────────────────────────────────── */
+.board {
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  gap: 16px; width: 100%; max-width: 920px; align-items: center;
+}
+
+.player-panel {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 24px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  border: 1.5px solid var(--border); box-shadow: var(--shadow-sm);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.player-panel.p1 { border-color: var(--p1-border); }
+.player-panel.p2 { border-color: var(--p2-border); }
+.player-panel.lit-p1 { border-color: var(--p1); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+.player-panel.lit-p2 { border-color: var(--p2); box-shadow: 0 0 0 3px rgba(124,58,237,0.15); }
+
+.player-name { font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+.p1 .player-name { color: var(--p1); }
+.p2 .player-name { color: var(--p2); }
+.deck-pill {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 100px; padding: 4px 12px;
+  font-size: 0.82rem; color: var(--text-muted); font-weight: 500;
+}
+.deck-pill strong { color: var(--text); font-size: 0.95rem; }
+
+.center-panel {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 24px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  border: 1.5px solid var(--border); box-shadow: var(--shadow-sm);
+}
+.round-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); }
+
+/* ── CARD GRID ───────────────────────────────────────────── */
+.card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.card {
+  width: 100px; height: 140px; background: #fff;
+  border-radius: 10px; border: 1.5px solid #dde3ea;
+  box-shadow: var(--shadow-card); position: relative;
+  user-select: none; overflow: hidden;
+}
+.card.red  { color: #d92b3a; }
+.card.black { color: #1a1a2e; }
+.card .corner {
+  position: absolute; font-size: 0.82rem; font-weight: 800;
+  line-height: 1.15; display: flex; flex-direction: column; align-items: center;
+}
+.card .corner.tl { top: 6px; left: 7px; }
+.card .corner.br { bottom: 6px; right: 7px; transform: rotate(180deg); }
+.pip-area { position: absolute; top: 24px; bottom: 24px; left: 7px; right: 7px; }
+.pip { position: absolute; transform: translate(-50%, -50%); line-height: 1; display: block; }
+.pip.r { transform: translate(-50%, -50%) rotate(180deg); }
+.pip-ace { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2.6rem; line-height: 1; }
+
+.card-empty {
+  width: 100px; height: 140px; border-radius: 10px;
+  border: 1.5px dashed var(--border); background: var(--surface-2);
+}
+
+.pile-tag { font-size: 0.78rem; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+.pile-badge { background: var(--accent); color: #fff; border-radius: 100px; padding: 1px 9px; font-size: 0.75rem; font-weight: 700; }
+
+/* ── STATUS BAR ──────────────────────────────────────────── */
+.status-bar {
+  width: 100%; max-width: 920px; background: var(--surface);
+  border-radius: var(--radius-sm); padding: 14px 20px;
+  font-size: 0.92rem; text-align: center; border: 1.5px solid var(--border);
+  min-height: 50px; display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); transition: border-color 0.25s, background 0.25s, color 0.25s;
+}
+.status-bar.success { background: var(--success-light); border-color: #6ee7b7; color: #065f46; }
+.status-bar.danger  { background: var(--danger-light);  border-color: #fca5a5; color: #991b1b; }
+.status-bar.warning { background: var(--warning-light); border-color: #fde68a; color: #92400e; }
+.status-bar.info    { background: var(--p1-light);      border-color: var(--p1-border); color: #1e40af; }
+
+/* ── ACTION ROW ──────────────────────────────────────────── */
+.action-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 920px; }
+
+/* ── WIN OVERLAY ─────────────────────────────────────────── */
+.win-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(15,23,42,0.65);
+  align-items: center; justify-content: center;
+  z-index: 100; backdrop-filter: blur(4px);
+}
+.win-overlay.show { display: flex; }
+.win-box {
+  background: var(--surface); border-radius: 20px;
+  padding: 48px 56px; text-align: center;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.25);
+  max-width: 400px; width: 90%; border: 1.5px solid var(--border);
+}
+.win-icon { font-size: 3.5rem; margin-bottom: 12px; }
+.win-title { font-size: 2rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+.win-title.c1 { color: var(--p1); }
+.win-title.c2 { color: var(--p2); }
+.win-sub { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 28px; }
+.win-stats { display: flex; justify-content: center; gap: 28px; margin-bottom: 28px; font-size: 0.85rem; color: var(--text-muted); }
+
+/* ── INSTRUCTIONS ────────────────────────────────────────── */
+details {
+  width: 100%; max-width: 920px; background: var(--surface);
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px 18px;
+}
+details summary { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px; color: var(--text-muted); cursor: pointer; user-select: none; text-transform: uppercase; }
+details p { margin-top: 8px; font-size: 0.82rem; color: var(--text-muted); line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ LOBBY SCREEN ═══════════════ -->
+<div id="lobbyScreen">
+  <div class="lobby-logo">
+    <h1>The 24 Game <span class="badge">Card Duel</span></h1>
+  </div>
+
+  <div class="lobby-card">
+    <button class="btn btn-primary" onclick="createGame()">✦ Create New Game</button>
+
+    <div class="divider">or join existing</div>
+
+    <div class="join-row">
+      <input id="joinCodeInput" maxlength="4" placeholder="Room code" autocomplete="off" spellcheck="false"
+             oninput="this.value=this.value.toUpperCase()"
+             onkeydown="if(event.key==='Enter') joinGame()">
+      <button class="btn btn-outline" onclick="joinGame()">Join →</button>
+    </div>
+    <div class="lobby-error" id="lobbyError"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ WAITING SCREEN ═══════════════ -->
+<div id="waitingScreen">
+  <div class="waiting-card">
+    <div class="waiting-label">Share this code with your opponent</div>
+    <div class="room-code-big" id="waitRoomCode">····</div>
+    <div class="waiting-sub">Waiting for opponent to join…</div>
+    <div class="spinner"></div>
+  </div>
+  <button class="btn btn-outline" onclick="goToLobby()">← Back to Lobby</button>
+</div>
+
+<!-- ═══════════════ GAME SCREEN ═══════════════ -->
+<div id="gameScreen">
+
+  <header>
+    <div class="logo">
+      <h1>The 24 Game</h1>
+      <span class="badge">Card Duel</span>
+    </div>
+    <div class="header-center">
+      <div class="room-code-small">Room <strong id="headerRoomCode">—</strong></div>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-outline" id="revealBtn" onclick="revealSolution()" disabled>Show Solution</button>
+      <button class="btn btn-outline" onclick="goToLobby()">Leave Game</button>
+    </div>
+  </header>
+
+  <div class="board">
+    <div class="player-panel p1" id="p1Panel">
+      <div class="player-name" id="p1Label">Player 1</div>
+      <div class="deck-pill">Cards: <strong id="p1Count">—</strong></div>
+      <button class="btn btn-p1" id="p1ClaimBtn" onclick="playerClaim(1)" disabled>✋ I Have It!</button>
+    </div>
+
+    <div class="center-panel">
+      <div class="round-label">Round <span id="roundNum">—</span></div>
+      <div class="card-grid" id="cardGrid">
+        <div class="card-empty"></div><div class="card-empty"></div>
+        <div class="card-empty"></div><div class="card-empty"></div>
+      </div>
+      <div class="pile-tag">Pile: <span class="pile-badge" id="pileCount">0</span></div>
+    </div>
+
+    <div class="player-panel p2" id="p2Panel">
+      <div class="player-name" id="p2Label">Player 2</div>
+      <div class="deck-pill">Cards: <strong id="p2Count">—</strong></div>
+      <button class="btn btn-p2" id="p2ClaimBtn" onclick="playerClaim(2)" disabled>✋ I Have It!</button>
+    </div>
+  </div>
+
+  <div class="status-bar" id="statusBar">Waiting…</div>
+
+  <div class="action-row">
+    <button class="btn btn-success" id="correctBtn" onclick="verdict(true)"  style="display:none">✓ Accepted</button>
+    <button class="btn btn-danger"  id="wrongBtn"   onclick="verdict(false)" style="display:none">✗ Wrong</button>
+    <button class="btn btn-warning" id="noSolBtn"   onclick="noSolution()" disabled>No Solution This Round</button>
+    <button class="btn btn-outline" id="nextRoundBtn" onclick="dealRound()" disabled>Next Round →</button>
+  </div>
+
+  <div class="win-overlay" id="winOverlay">
+    <div class="win-box">
+      <div class="win-icon">🏆</div>
+      <div class="win-title" id="winTitle">You Win!</div>
+      <div class="win-sub"   id="winSub"></div>
+      <div class="win-stats" id="winStats"></div>
+      <button class="btn btn-primary" onclick="goToLobby()" style="font-size:1rem;padding:12px 28px">New Game</button>
+    </div>
+  </div>
+
+  <details>
+    <summary>How to Play</summary>
+    <p><strong>Goal:</strong> Be the first player to shed all your cards.</p>
+    <p><strong>Each round:</strong> 4 cards are dealt — Player 1's 2 on top, Player 2's 2 on bottom. Use all four values with +, −, ×, ÷ to make <strong>24</strong>. Ace = 1.</p>
+    <p><strong>Claiming:</strong> First to figure out a solution clicks <em>I Have It!</em> and states it aloud. The other player clicks <em>Accepted</em> or <em>Wrong</em>. If wrong, the other player may then claim.</p>
+    <p><strong>Winning a round:</strong> The solver sheds their 2 cards. The other player absorbs all 4 cards on the table plus any pile.</p>
+    <p><strong>No solution:</strong> Click <em>No Solution This Round</em> — all 4 cards go to the pile for the next round's loser.</p>
+  </details>
+
+</div><!-- end #gameScreen -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  FIREBASE CONFIG
+//  1. Go to console.firebase.google.com
+//  2. Create a project → Realtime Database → Start in TEST MODE
+//  3. Project Settings → Add Web App → copy the config object below
+// ═══════════════════════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyC0pg5QJuzRLxGFYERzvZ7MzEEXlTRVHMc",
+  authDomain:        "game24-79f64.firebaseapp.com",
+  databaseURL:       "https://game24-79f64-default-rtdb.firebaseio.com",
+  projectId:         "game24-79f64",
+  storageBucket:     "game24-79f64.firebasestorage.app",
+  messagingSenderId: "897572684291",
+  appId:             "1:897572684291:web:9b85ab732d423795ce4436",
+  measurementId:     "G-F8KZPYGZPR"
+};
+// ═══════════════════════════════════════════════════════════════
+
+// ── Firebase init ──────────────────────────────────────────────
+let db = null;
+function ensureFirebase() {
+  if (db) return true;
+  if (!FIREBASE_CONFIG.apiKey || FIREBASE_CONFIG.apiKey.startsWith('PASTE')) {
+    setLobbyError('Firebase not configured — see code comments for setup instructions.');
+    return false;
+  }
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    return true;
+  } catch(e) {
+    setLobbyError('Firebase init failed: ' + e.message);
+    return false;
+  }
+}
+
+// ── Room & player state ────────────────────────────────────────
+let roomCode  = null;
+let myPlayer  = null;  // 1 or 2
+let gameRef   = null;
+let listener  = null;
+
+// ── Local game state (driven by Firebase) ─────────────────────
+let G = null;
+
+// ═══════════════════════════════════════════════════════════════
+//  PIP POSITIONS  [left%, top%, rotate180]
+// ═══════════════════════════════════════════════════════════════
+const PIP_POS = {
+  2:  [[50,14,0],[50,86,1]],
+  3:  [[50,14,0],[50,50,0],[50,86,1]],
+  4:  [[22,14,0],[78,14,0],[22,86,1],[78,86,1]],
+  5:  [[22,14,0],[78,14,0],[50,50,0],[22,86,1],[78,86,1]],
+  6:  [[22,14,0],[78,14,0],[22,50,0],[78,50,0],[22,86,1],[78,86,1]],
+  7:  [[22,12,0],[78,12,0],[50,34,0],[22,56,0],[78,56,0],[22,88,1],[78,88,1]],
+  8:  [[22,12,0],[78,12,0],[50,31,0],[22,53,0],[78,53,0],[50,69,1],[22,88,1],[78,88,1]],
+  9:  [[22,11,0],[78,11,0],[22,37,0],[78,37,0],[50,50,0],[22,63,1],[78,63,1],[22,89,1],[78,89,1]],
+  10: [[22,9,0],[78,9,0],[50,27,0],[22,45,0],[78,45,0],[22,55,1],[78,55,1],[50,73,1],[22,91,1],[78,91,1]],
+};
+const PIP_SIZE = { 2:1.15,3:1.15,4:1.05,5:1.05,6:1.0,7:0.88,8:0.88,9:0.78,10:0.72 };
+
+// ═══════════════════════════════════════════════════════════════
+//  DECK UTILITIES
+// ═══════════════════════════════════════════════════════════════
+const SUITS      = ['♠','♥','♦','♣'];
+const SUIT_COLOR = { '♠':'black','♥':'red','♦':'red','♣':'black' };
+const VALUES     = [1,2,3,4,5,6,7,8,9,10];
+
+function createDeck() {
+  return SUITS.flatMap(s => VALUES.map(v => ({ suit: s, value: v })));
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  24 SOLVER
+// ═══════════════════════════════════════════════════════════════
+function solve24(nums) {
+  function go(items) {
+    if (items.length === 1) return Math.abs(items[0].v - 24) < 1e-9 ? items[0].e : null;
+    for (let i = 0; i < items.length; i++) {
+      for (let j = 0; j < items.length; j++) {
+        if (i === j) continue;
+        const rest = items.filter((_,k) => k!==i && k!==j);
+        const a = items[i], b = items[j];
+        const ops = [
+          { v: a.v+b.v, e:`(${a.e} + ${b.e})` },
+          { v: a.v-b.v, e:`(${a.e} - ${b.e})` },
+          { v: a.v*b.v, e:`(${a.e} × ${b.e})` },
+        ];
+        if (Math.abs(b.v) > 1e-9) ops.push({ v: a.v/b.v, e:`(${a.e} ÷ ${b.e})` });
+        for (const op of ops) { const r = go([op, ...rest]); if (r !== null) return r; }
+      }
+    }
+    return null;
+  }
+  return go(nums.map(n => ({ v: n, e: n===1?'A':String(n) })));
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CARD RENDERING
+// ═══════════════════════════════════════════════════════════════
+function cardHTML(card) {
+  const cls = SUIT_COLOR[card.suit];
+  const d   = card.value === 1 ? 'A' : String(card.value);
+  const s   = card.suit;
+  if (card.value === 1) {
+    return `<div class="card ${cls}">
+      <div class="corner tl">${d}<br>${s}</div>
+      <div class="pip-ace">${s}</div>
+      <div class="corner br">${d}<br>${s}</div>
+    </div>`;
+  }
+  const sz  = PIP_SIZE[card.value] || 1;
+  const pipsHTML = (PIP_POS[card.value] || []).map(([l,t,r]) =>
+    `<span class="pip${r?' r':''}" style="left:${l}%;top:${t}%;font-size:${sz}rem">${s}</span>`
+  ).join('');
+  return `<div class="card ${cls}">
+    <div class="corner tl">${d}<br>${s}</div>
+    <div class="pip-area">${pipsHTML}</div>
+    <div class="corner br">${d}<br>${s}</div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+// Firebase returns null for empty arrays; normalise back to []
+function arr(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  return Object.values(v);  // Firebase can store arrays as {0:…,1:…}
+}
+
+function generateCode() {
+  return Math.random().toString(36).substring(2,6).toUpperCase();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SCREEN MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+function showScreen(name) {
+  document.getElementById('lobbyScreen').style.display   = name === 'lobby'   ? 'flex' : 'none';
+  document.getElementById('waitingScreen').style.display = name === 'waiting' ? 'flex' : 'none';
+  document.getElementById('gameScreen').style.display    = name === 'game'    ? 'flex' : 'none';
+}
+
+function goToLobby() {
+  if (listener && gameRef) { gameRef.off('value', listener); listener = null; }
+  roomCode = null; myPlayer = null; gameRef = null; G = null;
+  document.getElementById('winOverlay').classList.remove('show');
+  document.getElementById('joinCodeInput').value = '';
+  setLobbyError('');
+  showScreen('lobby');
+}
+
+function setLobbyError(msg) {
+  document.getElementById('lobbyError').textContent = msg;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  LOBBY ACTIONS
+// ═══════════════════════════════════════════════════════════════
+async function createGame() {
+  if (!ensureFirebase()) return;
+  setLobbyError('');
+
+  roomCode = generateCode();
+  myPlayer = 1;
+
+  const full   = shuffle([...createDeck(), ...createDeck()]);
+  const p1Deck = full.slice(0, 40);
+  const p2Deck = full.slice(40);
+
+  await db.ref(`rooms/${roomCode}`).set({
+    phase:        'waiting',
+    round:        0,
+    roundsPlayed: 0,
+    p1Deck,
+    p1Played:     null,
+    p2Deck,
+    p2Played:     null,
+    pile:         null,
+    roundNums:    null,
+    solution:     null,
+    claimed:      null,
+    triedWrong:   null,
+    p2Joined:     false,
+    createdAt:    Date.now(),
+  });
+
+  document.getElementById('waitRoomCode').textContent = roomCode;
+  showScreen('waiting');
+  startListening();
+}
+
+async function joinGame() {
+  if (!ensureFirebase()) return;
+  const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+  if (code.length !== 4) { setLobbyError('Enter a 4-character room code.'); return; }
+  setLobbyError('');
+
+  const snap = await db.ref(`rooms/${code}`).once('value');
+  const data = snap.val();
+  if (!data)              { setLobbyError('Room not found. Check the code and try again.'); return; }
+  if (data.p2Joined)      { setLobbyError('That room already has two players.'); return; }
+  if (data.phase === 'over') { setLobbyError('That game is already finished.'); return; }
+
+  roomCode = code;
+  myPlayer = 2;
+
+  document.getElementById('headerRoomCode').textContent = roomCode;
+  showScreen('game');
+  startListening();
+
+  // Signal P1 that P2 has joined
+  await db.ref(`rooms/${roomCode}/p2Joined`).set(true);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  FIREBASE LISTENER  →  drives all rendering
+// ═══════════════════════════════════════════════════════════════
+function startListening() {
+  gameRef = db.ref(`rooms/${roomCode}`);
+  listener = gameRef.on('value', snap => {
+    const data = snap.val();
+    if (!data) return;
+
+    // Build local G from Firebase data
+    G = {
+      p1:          { deck: arr(data.p1Deck), played: arr(data.p1Played) },
+      p2:          { deck: arr(data.p2Deck), played: arr(data.p2Played) },
+      pile:        arr(data.pile),
+      roundNums:   arr(data.roundNums),
+      solution:    data.solution  || null,
+      claimed:     data.claimed  != null ? data.claimed : null,
+      triedWrong:  arr(data.triedWrong),
+      phase:       data.phase    || 'idle',
+      round:       data.round    || 0,
+      roundsPlayed:data.roundsPlayed || 0,
+      winner:      data.winner   || null,
+      p2Joined:    data.p2Joined || false,
+    };
+
+    // P1 auto-deals when P2 joins
+    if (myPlayer === 1 && G.phase === 'waiting' && G.p2Joined) {
+      dealRound();
+      return;
+    }
+
+    if (G.phase !== 'waiting') {
+      document.getElementById('headerRoomCode').textContent = roomCode;
+      showScreen('game');
+    }
+
+    render();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  GAME ACTIONS  (all write to Firebase; listener drives render)
+// ═══════════════════════════════════════════════════════════════
+
+async function dealRound() {
+  if (!G) return;
+  const p1Deck = [...G.p1.deck];
+  const p2Deck = [...G.p2.deck];
+
+  if (p1Deck.length < 2) { await endGame(2, 'ran out of cards'); return; }
+  if (p2Deck.length < 2) { await endGame(1, 'ran out of cards'); return; }
+
+  const p1Played = [p1Deck.pop(), p1Deck.pop()];
+  const p2Played = [p2Deck.pop(), p2Deck.pop()];
+  const roundNums = [...p1Played, ...p2Played].map(c => c.value);
+  const solution  = solve24(roundNums);
+
+  await db.ref(`rooms/${roomCode}`).update({
+    phase:        'playing',
+    round:        G.round + 1,
+    roundsPlayed: G.roundsPlayed + 1,
+    p1Deck,  p1Played,
+    p2Deck,  p2Played,
+    roundNums,
+    solution:   solution || null,
+    claimed:    null,
+    triedWrong: null,
+  });
+}
+
+async function playerClaim(player) {
+  if (!G || player !== myPlayer) return;
+
+  // Atomic claim — only succeeds if no one has claimed yet
+  const result = await db.ref(`rooms/${roomCode}`).transaction(cur => {
+    if (!cur || cur.phase !== 'playing') return; // abort
+    if (cur.claimed != null) return;             // abort — already claimed
+    const tried = arr(cur.triedWrong);
+    if (tried.includes(player)) return;          // abort — already tried wrong
+    return { ...cur, claimed: player, phase: 'claimed' };
+  });
+
+  if (!result.committed) return; // someone else got there first
+}
+
+async function verdict(correct) {
+  if (!G || G.phase !== 'claimed') return;
+  // Only the non-claiming player should judge
+  if (G.claimed === myPlayer) return;
+
+  const claimer = G.claimed;
+  const loser   = claimer === 1 ? 2 : 1;
+
+  if (correct) {
+    const wDeck   = claimer === 1 ? [...G.p1.deck]   : [...G.p2.deck];
+    const wPlayed = claimer === 1 ? [...G.p1.played] : [...G.p2.played];
+    const lDeck   = loser   === 1 ? [...G.p1.deck]   : [...G.p2.deck];
+    const lPlayed = loser   === 1 ? [...G.p1.played] : [...G.p2.played];
+
+    const pileSize = G.pile.length;
+    const absorbed = [...lPlayed, ...wPlayed, ...G.pile];
+    const newLDeck = [...shuffle(absorbed), ...lDeck];
+
+    const update = {
+      phase:      'between',
+      pile:       null,
+      p1Played:   null,
+      p2Played:   null,
+      roundNums:  null,
+      solution:   null,
+      claimed:    null,
+      triedWrong: null,
+    };
+    if (claimer === 1) { update.p1Deck = wDeck; update.p2Deck = newLDeck; }
+    else               { update.p2Deck = wDeck; update.p1Deck = newLDeck; }
+
+    await db.ref(`rooms/${roomCode}`).update(update);
+
+    // Check win condition
+    if (wDeck.length === 0 || newLDeck.length === 0) {
+      const w = wDeck.length === 0 ? claimer : loser;
+      await db.ref(`rooms/${roomCode}`).update({ phase: 'over', winner: w });
+    }
+
+  } else {
+    // Wrong answer
+    const triedWrong = [...G.triedWrong, claimer];
+    const other = claimer === 1 ? 2 : 1;
+
+    if (!triedWrong.includes(other)) {
+      // Other player still has a chance
+      await db.ref(`rooms/${roomCode}`).update({ claimed: null, phase: 'playing', triedWrong });
+    } else {
+      // Both wrong — cards go to pile
+      const newPile = [...G.pile, ...G.p1.played, ...G.p2.played];
+      await db.ref(`rooms/${roomCode}`).update({
+        phase: 'between', claimed: null, triedWrong: null,
+        pile: newPile.length ? newPile : null,
+        p1Played: null, p2Played: null, roundNums: null, solution: null,
+      });
+    }
+  }
+}
+
+async function noSolution() {
+  if (!G || G.phase !== 'playing') return;
+  if (G.solution !== null) { setStatus('A solution exists — keep thinking!', 'danger'); return; }
+
+  const newPile = [...G.pile, ...G.p1.played, ...G.p2.played];
+  await db.ref(`rooms/${roomCode}`).update({
+    phase: 'between', claimed: null, triedWrong: null,
+    pile: newPile.length ? newPile : null,
+    p1Played: null, p2Played: null, roundNums: null, solution: null,
+  });
+}
+
+async function endGame(winner, reason) {
+  await db.ref(`rooms/${roomCode}`).update({ phase: 'over', winner });
+}
+
+function revealSolution() {
+  if (!G) return;
+  if (G.solution) setStatus(`A solution: ${G.solution}`, 'info');
+  else            setStatus('No solution exists for these four values.', 'warning');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════════
+function render() {
+  if (!G) return;
+
+  // Player labels
+  document.getElementById('p1Label').textContent = myPlayer === 1 ? 'You'      : 'Opponent';
+  document.getElementById('p2Label').textContent = myPlayer === 2 ? 'You'      : 'Opponent';
+
+  // Deck counts (deck + played = total held)
+  document.getElementById('p1Count').textContent = G.p1.deck.length + G.p1.played.length;
+  document.getElementById('p2Count').textContent = G.p2.deck.length + G.p2.played.length;
+
+  document.getElementById('roundNum').textContent  = G.round > 0 ? G.round : '—';
+  document.getElementById('pileCount').textContent = G.pile.length;
+
+  // Card grid: P1 top row, P2 bottom row
+  const empty = '<div class="card-empty"></div>';
+  const p1html = G.p1.played.length ? G.p1.played.map(cardHTML).join('') : empty+empty;
+  const p2html = G.p2.played.length ? G.p2.played.map(cardHTML).join('') : empty+empty;
+  document.getElementById('cardGrid').innerHTML = p1html + p2html;
+
+  const playing = G.phase === 'playing';
+  const claimed = G.phase === 'claimed';
+  const between = G.phase === 'between';
+
+  // Claim buttons — only YOUR button can be clicked
+  const p1CanClaim = playing && !G.triedWrong.includes(1) && G.claimed !== 1;
+  const p2CanClaim = playing && !G.triedWrong.includes(2) && G.claimed !== 2;
+  document.getElementById('p1ClaimBtn').disabled = !(myPlayer === 1 && p1CanClaim);
+  document.getElementById('p2ClaimBtn').disabled = !(myPlayer === 2 && p2CanClaim);
+
+  // Verdict buttons — only the non-claiming player judges
+  const iAmJudge = claimed && G.claimed !== myPlayer;
+  document.getElementById('correctBtn').style.display = iAmJudge ? '' : 'none';
+  document.getElementById('wrongBtn').style.display   = iAmJudge ? '' : 'none';
+
+  // Other controls
+  document.getElementById('noSolBtn').disabled    = !playing;
+  document.getElementById('nextRoundBtn').disabled = !between;
+  document.getElementById('revealBtn').disabled    = G.roundNums.length < 4;
+
+  // Panel highlights (who claimed)
+  document.getElementById('p1Panel').className = 'player-panel p1' + (G.claimed===1 ? ' lit-p1' : '');
+  document.getElementById('p2Panel').className = 'player-panel p2' + (G.claimed===2 ? ' lit-p2' : '');
+
+  // Status messages
+  if (G.phase === 'playing') {
+    setStatus(`Round ${G.round} — make 24 with these four cards!`, 'info');
+  } else if (G.phase === 'claimed') {
+    const who    = G.claimed === myPlayer ? 'You raised your hand' : 'Opponent raised their hand';
+    const action = G.claimed === myPlayer ? 'State your solution aloud.'
+                                          : 'Accept or reject their solution.';
+    setStatus(`${who}! ${action}`, 'info');
+  } else if (G.phase === 'between') {
+    // Status was already set by the action that triggered 'between'
+  } else if (G.phase === 'waiting') {
+    setStatus('Waiting for opponent to join…');
+  }
+
+  // Win screen
+  if (G.phase === 'over' && G.winner) {
+    const iWon = G.winner === myPlayer;
+    document.getElementById('winTitle').textContent  = iWon ? '🎉 You Win!' : 'You Lose…';
+    document.getElementById('winTitle').className    = `win-title c${G.winner}`;
+    document.getElementById('winSub').textContent    =
+      `After ${G.roundsPlayed} round${G.roundsPlayed!==1?'s':''}.`;
+    document.getElementById('winStats').innerHTML    =
+      `<span>P1 cards: ${G.p1.deck.length}</span><span>P2 cards: ${G.p2.deck.length}</span>`;
+    document.getElementById('winOverlay').classList.add('show');
+  }
+}
+
+// ── Status helper ──────────────────────────────────────────────
+function setStatus(text, type = '') {
+  const el = document.getElementById('statusBar');
+  el.textContent = text;
+  el.className   = 'status-bar' + (type ? ' '+type : '');
+}
+
+// ── Init: show lobby ───────────────────────────────────────────
+showScreen('lobby');
+</script>
+</body>
+</html>
