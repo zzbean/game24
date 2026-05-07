@@ -36,6 +36,8 @@
   --shadow-card: 0 6px 20px rgba(0,0,0,0.13), 0 2px 6px rgba(0,0,0,0.08);
   --radius: 14px;
   --radius-sm: 8px;
+  --card-w: 100px;
+  --card-h: 140px;
 }
 
 body {
@@ -46,8 +48,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 32px 20px;
-  gap: 20px;
+  padding: 24px 16px;
+  gap: 16px;
 }
 
 /* ── BUTTONS ─────────────────────────────────────────────── */
@@ -231,7 +233,7 @@ header {
 .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 .card {
-  width: 100px; height: 140px; background: #fff;
+  width: var(--card-w); height: var(--card-h); background: #fff;
   border-radius: 10px; border: 1.5px solid #dde3ea;
   box-shadow: var(--shadow-card); position: relative;
   user-select: none; overflow: hidden;
@@ -239,7 +241,7 @@ header {
 .card.red  { color: #d92b3a; }
 .card.black { color: #1a1a2e; }
 .card .corner {
-  position: absolute; font-size: 1.15rem; font-weight: 800;
+  position: absolute; font-size: calc(var(--card-w) * 0.18); font-weight: 800;
   line-height: 1.1; display: flex; flex-direction: column; align-items: center;
 }
 .card .corner.tl { top: 7px; left: 9px; }
@@ -247,11 +249,11 @@ header {
 .card-suit {
   position: absolute; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 3rem; line-height: 1;
+  font-size: calc(var(--card-w) * 0.46); line-height: 1;
 }
 
 .card-empty {
-  width: 100px; height: 140px; border-radius: 10px;
+  width: var(--card-w); height: var(--card-h); border-radius: 10px;
   border: 1.5px dashed var(--border); background: var(--surface-2);
 }
 
@@ -302,6 +304,63 @@ details {
 }
 details summary { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px; color: var(--text-muted); cursor: pointer; user-select: none; text-transform: uppercase; }
 details p { margin-top: 8px; font-size: 0.82rem; color: var(--text-muted); line-height: 1.7; }
+
+/* ── MOBILE ──────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  :root {
+    --card-w: clamp(100px, calc((100vw - 80px) / 2), 140px);
+    --card-h: calc(var(--card-w) * 1.35);
+  }
+
+  body { padding: 12px 12px; gap: 10px; }
+
+  /* Header: compact */
+  header { max-width: 100%; }
+  .logo h1 { font-size: 1.1rem; }
+  .logo .badge { display: none; }
+  .header-center { display: none; }
+  .header-right { gap: 6px; }
+  .header-right .btn { padding: 7px 10px; font-size: 0.78rem; }
+
+  /* Board: cards on top, players side by side below */
+  .board {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    max-width: 100%;
+  }
+  .player-panel.p1 { grid-column: 1; grid-row: 2; }
+  .center-panel    { grid-column: 1 / -1; grid-row: 1; }
+  .player-panel.p2 { grid-column: 2; grid-row: 2; }
+
+  /* Player panels: compact */
+  .player-panel { padding: 10px 8px; gap: 6px; }
+  .player-name { font-size: 0.62rem; letter-spacing: 1px; }
+  .deck-pill { font-size: 0.72rem; padding: 3px 8px; }
+  .btn-p1, .btn-p2 { font-size: 0.82rem; padding: 10px 6px; }
+
+  /* Center panel: tighter */
+  .center-panel { padding: 14px 12px; gap: 10px; }
+
+  /* Status bar */
+  .status-bar { max-width: 100%; font-size: 0.85rem; padding: 10px 14px; min-height: 40px; }
+
+  /* Action row: stack full-width */
+  .action-row { max-width: 100%; gap: 8px; }
+  .action-row .btn { flex: 1 1 45%; justify-content: center; padding: 12px 8px; font-size: 0.85rem; min-height: 44px; }
+
+  /* Lobby */
+  #lobbyScreen { padding-top: 16px; gap: 20px; }
+  .lobby-logo h1 { font-size: 1.8rem; }
+  .lobby-card { padding: 20px 16px; }
+
+  /* Waiting */
+  .waiting-card { padding: 28px 20px; }
+  .room-code-big { font-size: 2.4rem; letter-spacing: 5px; }
+
+  /* Win overlay */
+  .win-box { padding: 32px 20px; }
+  .win-title { font-size: 1.5rem; }
+}
 </style>
 </head>
 <body>
@@ -350,7 +409,6 @@ details p { margin-top: 8px; font-size: 0.82rem; color: var(--text-muted); line-
       <div class="room-code-small">Room <strong id="headerRoomCode">—</strong></div>
     </div>
     <div class="header-right">
-      <button class="btn btn-outline" id="revealBtn" onclick="revealSolution()" disabled>Show Solution</button>
       <button class="btn btn-outline" onclick="goToLobby()">Leave Game</button>
     </div>
   </header>
@@ -383,7 +441,8 @@ details p { margin-top: 8px; font-size: 0.82rem; color: var(--text-muted); line-
   <div class="action-row">
     <button class="btn btn-success" id="correctBtn" onclick="verdict(true)"  style="display:none">✓ Accepted</button>
     <button class="btn btn-danger"  id="wrongBtn"   onclick="verdict(false)" style="display:none">✗ Wrong</button>
-    <button class="btn btn-warning" id="noSolBtn"   onclick="noSolution()" disabled>No Solution This Round</button>
+    <button class="btn btn-outline" id="revealBtn" onclick="revealSolution()" disabled>Show Solution</button>
+    <button class="btn btn-warning" id="noSolBtn"   onclick="noSolution()" disabled>No Solution</button>
     <button class="btn btn-outline" id="nextRoundBtn" onclick="dealRound()" disabled>Next Round →</button>
   </div>
 
